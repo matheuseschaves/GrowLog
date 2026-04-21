@@ -3,7 +3,7 @@ GrowLog — Tela de Configurações e Sync
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QPushButton, QGroupBox, QMessageBox
+    QComboBox, QPushButton, QGroupBox, QMessageBox, QSpinBox, QFormLayout
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -18,6 +18,7 @@ class SettingsView(QWidget):
     request_download     = pyqtSignal()
     request_sync_now     = pyqtSignal()
     interval_changed     = pyqtSignal(str)
+    preferences_saved    = pyqtSignal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,6 +58,7 @@ class SettingsView(QWidget):
         """)
         drive_layout = QVBoxLayout(group_drive)
         drive_layout.setSpacing(14)
+        drive_layout.setContentsMargins(12, 20, 12, 12)
 
         # Status de conexão
         status_row = QHBoxLayout()
@@ -72,9 +74,13 @@ class SettingsView(QWidget):
         # Botão de autenticação
         self.btn_auth = make_primary_btn('🔑 Conectar conta Google')
         self.btn_auth.clicked.connect(self.request_authenticate)
+        self.btn_auth.setMaximumWidth(280)
+        self.btn_auth.setFixedHeight(40)
         drive_layout.addWidget(self.btn_auth)
+        drive_layout.addSpacing(4)
 
         # Intervalo de sync
+        drive_layout.addSpacing(8)
         interval_row = QHBoxLayout()
         lbl_interval = QLabel('Sync automático:')
         lbl_interval.setStyleSheet('color: #7a9e7e; font-size: 13px;')
@@ -87,6 +93,7 @@ class SettingsView(QWidget):
         drive_layout.addLayout(interval_row)
 
         # Status do timer
+        drive_layout.addSpacing(8)
         timer_row = QHBoxLayout()
         lbl_timer_label = QLabel('Timer:')
         lbl_timer_label.setStyleSheet('color: #4a6b4e; font-size: 11px;')
@@ -124,6 +131,52 @@ class SettingsView(QWidget):
 
         root.addWidget(group_drive)
 
+        # ── Grupo: Preferências de Cultivo ───────────────────────────────────
+        group_prefs = QGroupBox('🌿 Preferências de Cultivo')
+        group_prefs.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #2a3f2b;
+                border-radius: 12px;
+                margin-top: 12px;
+                padding: 16px;
+                color: #7a9e7e;
+                font-size: 11px;
+                letter-spacing: 1px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+            }
+        """)
+        prefs_layout = QFormLayout(group_prefs)
+        prefs_layout.setSpacing(14)
+
+        self.spin_water_interval = QSpinBox()
+        self.spin_water_interval.setRange(1, 30)
+        self.spin_water_interval.setSuffix(' dias')
+        self.spin_water_interval.setValue(3)
+        self.spin_water_interval.setMaximumWidth(120)
+
+
+        lbl_interval_help = QLabel(
+            'Intervalo padrão para plantas sem histórico '
+            '(mínimo 3 regas para cálculo automático).'
+        )
+        lbl_interval_help.setStyleSheet('color: #4a6b4e; font-size: 11px;')
+        lbl_interval_help.setWordWrap(True)
+
+        btn_save_prefs = make_primary_btn('💾 Salvar Preferências')
+        btn_save_prefs.clicked.connect(self._save_preferences)
+        btn_save_prefs.setMaximumWidth(280)
+
+
+        prefs_layout.addRow(field_label('Intervalo de rega padrão'), self.spin_water_interval)
+        prefs_layout.addRow('', lbl_interval_help)
+        prefs_layout.addRow('', btn_save_prefs)
+
+        root.addWidget(group_prefs)
+
         # ── Grupo: Sobre ─────────────────────────────────────────────────────
         group_about = QGroupBox('ℹ Sobre')
         group_about.setStyleSheet(group_drive.styleSheet())
@@ -142,8 +195,7 @@ class SettingsView(QWidget):
         root.addWidget(group_about)
         root.addStretch()
 
-        # Estado inicial dos botões
-        self._set_connected(False)
+        
 
         # Controle interno do timer
         self._timer_running = False
@@ -205,6 +257,15 @@ class SettingsView(QWidget):
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.request_download.emit()
+    
+    def _save_preferences(self):
+        interval = self.spin_water_interval.value()
+        self.preferences_saved.emit(interval)
+        QMessageBox.information(self, 'Salvo', '✅ Preferências salvas!')
+
+    def load_preferences(self, watering_interval: int):
+        self.spin_water_interval.setValue(watering_interval)
 
     def refresh(self):
         pass  # Não precisa recarregar dados do banco
+

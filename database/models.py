@@ -44,6 +44,24 @@ class Plant(BaseModel):
         if not self.last_watered:
             return None
         return (datetime.date.today() - self.last_watered).days
+    
+    def average_watering_interval(self, fallback: int = 3) -> int:
+        regas = (Log
+             .select()
+             .where((Log.plant == self) & (Log.log_type == 'rega'))
+             .order_by(Log.date.asc()))
+        datas = [r.date for r in regas]
+        if len(datas) < 3:
+            return fallback
+        intervalos = [(datas[i+1] - datas[i]).days for i in range(len(datas)-1)]
+        return max(1, round(sum(intervalos) / len(intervalos)))
+    
+    def needs_watering(self, fallback_interval: int = 3) -> bool:
+        days = self.days_since_watered()
+        if days is None:
+            return False
+        interval = self.average_watering_interval(fallback_interval)
+        return days >= interval
 
     def stage_label(self):
         labels = {
