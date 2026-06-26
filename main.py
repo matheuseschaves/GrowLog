@@ -20,6 +20,7 @@ from views.calendar_view import CalendarView
 from views.settings_view import SettingsView
 from ui.widgets import LogDialog, PlantDialog
 from sync.sync_manager import SyncManager
+from settings_manager import SettingsManager
 
 
 class NavButton(QPushButton):
@@ -83,7 +84,7 @@ class Sidebar(QWidget):
         self.lbl_sync.setWordWrap(True)
         layout.addWidget(self.lbl_sync)
 
-        lbl_ver = QLabel('v1.1.0')
+        lbl_ver = QLabel('v1.2.0')
         lbl_ver.setObjectName('app_subtitle')
         lbl_ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl_ver)
@@ -103,7 +104,8 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setMinimumSize(900, 600)
 
-        self.sync_manager = SyncManager(base_dir='.')
+        self.sync_manager     = SyncManager(base_dir='.')
+        self.settings_manager = SettingsManager(base_dir='.')
 
         self._build_ui()
         self._connect_signals()
@@ -160,6 +162,12 @@ class MainWindow(QMainWindow):
         self.view_settings.request_download.connect(self._force_download)
         self.view_settings.request_sync_now.connect(self._sync_now)
         self.view_settings.interval_changed.connect(self._on_interval_changed)
+        self.view_settings.preferences_saved.connect(self._on_preferences_saved)
+
+        # Carrega preferências salvas na tela de settings
+        self.view_settings.load_preferences(
+            self.settings_manager.watering_interval_days
+        )
 
         self.sync_manager.sync_status.connect(self._on_sync_status)
         self.sync_manager.sync_finished.connect(self._on_sync_finished)
@@ -177,7 +185,8 @@ class MainWindow(QMainWindow):
         views[index].refresh()
 
     def refresh_all(self):
-        self.view_dashboard.refresh()
+        interval = self.settings_manager.watering_interval_days
+        self.view_dashboard.refresh(watering_interval=interval)
         self.view_plants.refresh()
         self.view_history.refresh()
         self.view_calendar.refresh()
@@ -240,6 +249,10 @@ class MainWindow(QMainWindow):
     def _sync_now(self):
         self.sync_manager.run_sync()
 
+    def _on_preferences_saved(self, watering_interval: int):
+        self.settings_manager.watering_interval_days = watering_interval
+        self.refresh_all()
+
     def _on_interval_changed(self, label: str):
         if label == '__stop__':
             self.sync_manager.stop()
@@ -282,8 +295,11 @@ class MainWindow(QMainWindow):
                 if data.get('ph'): plant.current_ph = data['ph']
                 if data.get('ec'): plant.current_ec = data['ec']
                 plant.save()
-            elif data['log_type'] == 'fase' and new_stage:
-                plant.stage = new_stage
+            elif data['log_type'] == 'fase' and data.get('new_stage'):
+                plant.stage = data.pop('new_stage')
+                plant.save()
+            elif data['log_type'] == 'ambiente' and data.get('new_env'):
+                plant.environment_type = data.pop('new_env')
                 plant.save()
             self.refresh_all()
 

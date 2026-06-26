@@ -3,7 +3,7 @@ GrowLog — Tela de Configurações e Sync
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QPushButton, QGroupBox, QMessageBox
+    QComboBox, QPushButton, QGroupBox, QMessageBox, QFormLayout, QSpinBox, QScrollArea
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -18,13 +18,28 @@ class SettingsView(QWidget):
     request_download     = pyqtSignal()
     request_sync_now     = pyqtSignal()
     interval_changed     = pyqtSignal(str)
+    preferences_saved    = pyqtSignal(int)   # watering_interval_days
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._build_ui()
 
     def _build_ui(self):
-        root = QVBoxLayout(self)
+        # Layout externo — só contém o scroll
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        outer.addWidget(scroll)
+
+        # Widget interno que vai dentro do scroll
+        inner = QWidget()
+        scroll.setWidget(inner)
+
+        root = QVBoxLayout(inner)
         root.setContentsMargins(28, 24, 28, 24)
         root.setSpacing(20)
         root.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -124,14 +139,42 @@ class SettingsView(QWidget):
 
         root.addWidget(group_drive)
 
-        # ── Grupo: Sobre ─────────────────────────────────────────────────────
+        # ── Grupo: Preferências de Cultivo ───────────────────────────────────
+        group_prefs = QGroupBox('🌿 Preferências de Cultivo')
+        group_prefs.setStyleSheet(group_drive.styleSheet())
+        prefs_layout = QFormLayout(group_prefs)
+        prefs_layout.setSpacing(14)
+
+        from PyQt6.QtWidgets import QSpinBox
+        self.spin_water_interval = QSpinBox()
+        self.spin_water_interval.setRange(1, 30)
+        self.spin_water_interval.setSuffix(' dias')
+        self.spin_water_interval.setValue(3)
+        self.spin_water_interval.setToolTip(
+            'Usado para plantas novas sem histórico de rega suficiente.'
+        )
+
+        lbl_interval_help = QLabel(
+            'Intervalo padrão para plantas sem histórico (mínimo 3 regas para cálculo automático).'
+        )
+        lbl_interval_help.setStyleSheet('color: #4a6b4e; font-size: 11px;')
+        lbl_interval_help.setWordWrap(True)
+
+        btn_save_prefs = make_primary_btn('💾 Salvar Preferências')
+        btn_save_prefs.clicked.connect(self._save_preferences)
+
+        prefs_layout.addRow(field_label('Intervalo de rega padrão'), self.spin_water_interval)
+        prefs_layout.addRow('', lbl_interval_help)
+        prefs_layout.addRow('', btn_save_prefs)
+
+        root.addWidget(group_prefs)
         group_about = QGroupBox('ℹ Sobre')
         group_about.setStyleSheet(group_drive.styleSheet())
         about_layout = QVBoxLayout(group_about)
         about_layout.setSpacing(6)
 
         for text in [
-            '🌿  GrowLog v1.1.0',
+            '🌿  GrowLog v1.2.0',
             '🐍  Python + PyQt6 + Peewee',
             '☁   Google Drive API v3',
         ]:
@@ -205,6 +248,14 @@ class SettingsView(QWidget):
         )
         if reply == QMessageBox.StandardButton.Yes:
             self.request_download.emit()
+
+    def _save_preferences(self):
+        interval = self.spin_water_interval.value()
+        self.preferences_saved.emit(interval)
+        QMessageBox.information(self, 'Salvo', '✅ Preferências salvas!')
+
+    def load_preferences(self, watering_interval: int):
+        self.spin_water_interval.setValue(watering_interval)
 
     def refresh(self):
         pass  # Não precisa recarregar dados do banco
