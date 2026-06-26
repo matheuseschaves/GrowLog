@@ -99,7 +99,7 @@ class DashboardView(QWidget):
 
         root.addLayout(bottom)
 
-    def refresh(self):
+    def refresh(self, watering_interval: int = 3):
         """Recarrega todos os dados do dashboard."""
         plants  = list(Plant.select())
         logs    = list(Log.select(Log, Plant).join(Plant).order_by(Log.date.desc()).limit(20))
@@ -113,18 +113,25 @@ class DashboardView(QWidget):
         self.card_plants.update_data(str(len(plants)), f'{len(plants)} no cultivo', 'info')
         self.card_logs.update_data(str(len(logs)), 'últimos registros', 'info')
 
-        # Última rega geral
+        # Última rega — usa intervalo inteligente
         last_water = (Log.select()
                       .where(Log.log_type == 'rega')
                       .order_by(Log.date.desc())
                       .first())
         if last_water:
             days = (datetime.date.today() - last_water.date).days
-            st   = 'warn' if days >= 2 else 'ok'
-            stxt = f'⚠ há {days} dias' if days >= 2 else f'✓ há {days} dias'
+            st   = 'warn' if days >= watering_interval else 'ok'
+            stxt = f'⚠ há {days} dias' if days >= watering_interval else f'✓ há {days} dias'
             self.card_watering.update_data(f'{days}d', stxt, st)
         else:
             self.card_watering.update_data('—', 'sem registro', 'info')
+
+        # Plantas que precisam de rega
+        need_water = [p for p in plants if p.needs_watering(watering_interval)]
+        if need_water:
+            names = ', '.join(p.name for p in need_water[:2])
+            suffix = f' +{len(need_water)-2}' if len(need_water) > 2 else ''
+            self.card_watering.lbl_status.setText(f'⚠ {names}{suffix} precisam de rega')
 
         st = 'warn' if overdue else ('ok' if pending == 0 else 'info')
         self.card_tasks.update_data(

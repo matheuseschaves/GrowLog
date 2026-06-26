@@ -245,10 +245,11 @@ class LogDialog(QDialog):
 
         # Tipo
         self.combo_type = QComboBox()
-        self.combo_type.addItem('💧 Rega',     'rega')
-        self.combo_type.addItem('🧪 Nutrição', 'nutricao')
-        self.combo_type.addItem('📝 Anotação', 'nota')
-        self.combo_type.addItem('🔄 Fase',     'fase')
+        self.combo_type.addItem('💧 Rega',              'rega')
+        self.combo_type.addItem('🧪 Nutrição',         'nutricao')
+        self.combo_type.addItem('📝 Anotação',         'nota')
+        self.combo_type.addItem('🔄 Fase',             'fase')
+        self.combo_type.addItem('🏠 Migração Ambiente','ambiente')
         idx = self.combo_type.findData(log_type)
         if idx >= 0: self.combo_type.setCurrentIndex(idx)
         self.combo_type.currentIndexChanged.connect(self._toggle_fields)
@@ -323,8 +324,13 @@ class LogDialog(QDialog):
         for key, label in STAGES:
             self.combo_new_stage.addItem(label, key)
 
-        noteg.addRow(field_label('Nota'),       self.edit_content)
-        noteg.addRow(field_label('Nova fase'),  self.combo_new_stage)
+        self.combo_new_env = QComboBox()
+        self.combo_new_env.addItem('🏠 Indoor',  'indoor')
+        self.combo_new_env.addItem('🌳 Outdoor', 'outdoor')
+
+        noteg.addRow(field_label('Nota'),            self.edit_content)
+        noteg.addRow(field_label('Nova fase'),       self.combo_new_stage)
+        noteg.addRow(field_label('Novo ambiente'),   self.combo_new_env)
         layout.addWidget(self.note_group)
 
         # Botões
@@ -343,12 +349,9 @@ class LogDialog(QDialog):
         t = self.combo_type.currentData()
         self.water_group.setVisible(t == 'rega')
         self.nutri_group.setVisible(t == 'nutricao')
-        self.note_group.setVisible(t in ('nota', 'fase'))
-        # Mostrar/ocultar combo de fase
-        if t == 'fase':
-            self.combo_new_stage.setVisible(True)
-        else:
-            self.combo_new_stage.setVisible(False)
+        self.note_group.setVisible(t in ('nota', 'fase', 'ambiente'))
+        self.combo_new_stage.setVisible(t == 'fase')
+        self.combo_new_env.setVisible(t == 'ambiente')
         self.adjustSize()
 
     def get_data(self) -> dict:
@@ -377,12 +380,25 @@ class LogDialog(QDialog):
                 'ph_after': self.spin_ph_after.value() or None,
                 'summary':  f"{self.edit_product.text()} {self.spin_dose.value()}ml/L"
             })
-        elif t in ('nota', 'fase'):
+        elif t == 'fase':
             content = self.edit_content.toPlainText().strip()
             data.update({
                 'content':   content or None,
-                'new_stage': self.combo_new_stage.currentData() if t == 'fase' else None,
-                'summary':   content[:60] if content else 'Anotação'
+                'new_stage': self.combo_new_stage.currentData(),
+                'summary':   f"Fase → {self.combo_new_stage.currentText()}"
+            })
+        elif t == 'ambiente':
+            content = self.edit_content.toPlainText().strip()
+            data.update({
+                'content':     content or None,
+                'new_env':     self.combo_new_env.currentData(),
+                'summary':     f"Ambiente → {self.combo_new_env.currentText()}"
+            })
+        elif t == 'nota':
+            content = self.edit_content.toPlainText().strip()
+            data.update({
+                'content': content or None,
+                'summary': content[:60] if content else 'Anotação'
             })
 
         return data
