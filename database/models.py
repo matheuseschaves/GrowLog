@@ -104,6 +104,7 @@ class Log(BaseModel):
 
     # Nota livre
     content      = TextField(null=True)
+    height = FloatField(null=True)
 
     class Meta:
         table_name = 'logs'

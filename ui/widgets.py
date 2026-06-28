@@ -282,10 +282,16 @@ class LogDialog(QDialog):
         self.spin_runoff = QDoubleSpinBox()
         self.spin_runoff.setRange(0, 14); self.spin_runoff.setDecimals(1); self.spin_runoff.setValue(6.0)
 
+        self.spin_height_w = QDoubleSpinBox()
+        self.spin_height_w.setRange(0, 500)
+        self.spin_height_w.setDecimals(1)
+        self.spin_height_w.setSuffix(' cm')
+
         wg.addRow(field_label('Volume'),    self.spin_volume)
         wg.addRow(field_label('pH'),        self.spin_ph)
         wg.addRow(field_label('EC'),        self.spin_ec)
         wg.addRow(field_label('Runoff pH'), self.spin_runoff)
+        wg.addRow(field_label('Altura'), self.spin_height_w)
         layout.addWidget(self.water_group)
 
         # ── Campos de Nutrição ──────────────────────────
@@ -371,6 +377,7 @@ class LogDialog(QDialog):
                 'ph':           self.spin_ph.value() or None,
                 'ec':           self.spin_ec.value() or None,
                 'runoff_ph':    self.spin_runoff.value() or None,
+                'height':       self.spin_height_w.value() or None,
                 'summary':      f"{self.spin_volume.value()}L · pH {self.spin_ph.value()}"
             })
         elif t == 'nutricao':

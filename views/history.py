@@ -119,6 +119,7 @@ class HistoryView(QWidget):
             if log.ph:           parts.append(f'pH {log.ph}')
             if log.ec:           parts.append(f'EC {log.ec}')
             if log.runoff_ph:    parts.append(f'Runoff {log.runoff_ph}')
+            if log.height:       parts.append(f'📏 {log.height}cm')
         elif log.log_type == 'nutricao':
             if log.product:  parts.append(log.product)
             if log.dose:     parts.append(f'{log.dose}ml/L')
